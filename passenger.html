@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Passenger Booking Interface</title>
+        <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
+        <link
+            href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css"
+            rel="stylesheet"
+        />
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            body {
+                font-family: "Inter", sans-serif;
+                background-color: #f8fafc;
+            }
+
+            .leaflet-marker-icon {
+                border: none;
+                background: none;
+            }
+
+            .driver-icon,
+            .passenger-icon {
+                width: 3rem;
+                height: 3rem;
+                border-radius: 9999px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+                background-color: white;
+                border: 3px solid #10b981;
+                box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.1);
+                transition: all 0.3s ease;
+            }
+
+            .location-icon {
+                width: 2.5rem;
+                height: 2.5rem;
+                background-color: #f97316;
+                border-radius: 9999px;
+                border: 3px solid white;
+                box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.1);
+            }
+
+            .custom-marker-container {
+                background: none;
+                border: none;
+            }
+
+            .custom-marker {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.75rem;
+                width: 3rem;
+                height: 3rem;
+                background-color: white;
+                border-radius: 9999px;
+                box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.1);
+                transition: transform 0.3s ease;
+            }
+
+            .custom-marker:hover {
+                transform: scale(1.1);
+            }
+
+            .driver-marker {
+                background-color: #10b981;
+                color: white;
+                border: 3px solid white;
+            }
+
+            .pickup-marker {
+                background-color: #3b82f6;
+                color: white;
+                border: 3px solid white;
+            }
+
+            .dropoff-marker {
+                background-color: #ef4444;
+                color: white;
+                border: 3px solid white;
+            }
+
+            .passenger-marker {
+                background-color: #f59e0b;
+                color: white;
+                border: 3px solid white;
+            }
+
+            .glass-card {
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            }
+
+            .status-badge {
+                display: inline-flex;
+                align-items: center;
+                padding: 0.5rem 1rem;
+                border-radius: 9999px;
+                font-weight: 600;
+                font-size: 0.875rem;
+                background: #10b981;
+                color: white;
+                box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+            }
+
+            .status-badge.warning {
+                background: #f59e0b;
+                box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+            }
+
+            .status-badge.error {
+                background: #ef4444;
+                box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+            }
+
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.75rem 1.5rem;
+                font-weight: 600;
+                border-radius: 0.75rem;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+
+            .btn:hover {
+                transform: translateY(-2px);
+            }
+
+            .btn:active {
+                transform: translateY(0);
+            }
+
+            .btn-primary {
+                background: #10b981;
+                color: white;
+            }
+
+            .btn-primary:hover {
+                background: #059669;
+            }
+
+            .btn-danger {
+                background: #ef4444;
+                color: white;
+            }
+
+            .btn-danger:hover {
+                background: #dc2626;
+            }
+
+            .input-group {
+                position: relative;
+                margin-bottom: 1.5rem;
+            }
+
+            .input-group label {
+                position: absolute;
+                top: -0.5rem;
+                left: 1rem;
+                padding: 0 0.5rem;
+                background: white;
+                color: #6b7280;
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+
+            .input-group input {
+                width: 100%;
+                padding: 1rem;
+                border: 2px solid #e5e7eb;
+                border-radius: 0.75rem;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+            }
+
+            .input-group input:focus {
+                border-color: #10b981;
+                box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+                outline: none;
+            }
+
+            .map-container {
+                border-radius: 1rem;
+                overflow: hidden;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+                position: relative;
+                z-index: 1;
+            }
+
+            #map {
+                z-index: 1;
+            }
+
+            .leaflet-pane,
+            .leaflet-control,
+            .leaflet-top,
+            .leaflet-bottom {
+                z-index: 2 !important;
+            }
+
+            #overlay {
+                position: fixed;
+                inset: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 50;
+            }
+
+            .modal,
+            #driverDialog,
+            #tripNotification,
+            #timeoutModal,
+            #driverAcceptancePopup {
+                z-index: 51;
+            }
+
+            .modal-content {
+                background: white;
+                border-radius: 1rem;
+                padding: 2rem;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+                z-index: 51;
+            }
+
+            .driver-info-card {
+                background: white;
+                border-radius: 1rem;
+                padding: 1.5rem;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e5e7eb;
+            }
+
+            .driver-avatar {
+                width: 4rem;
+                height: 4rem;
+                background: #f3f4f6;
+                border-radius: 9999px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 2rem;
+                margin-bottom: 1rem;
+            }
+
+            .route-info {
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border-radius: 1rem;
+                padding: 1rem 2rem;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+
+            .route-info span {
+                font-weight: 600;
+                color: #1f2937;
+            }
+
+            .countdown-timer {
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 0.75rem 1.5rem;
+                border-radius: 9999px;
+                font-weight: 600;
+                backdrop-filter: blur(10px);
+            }
+
+            .modal {
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(5px);
+            }
+
+            .driver-popup-info {
+                background: white;
+                border-radius: 0.75rem;
+                padding: 1rem;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            }
+
+            .driver-popup-info h3 {
+                font-size: 1.25rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+                color: #1f2937;
+            }
+
+            .driver-popup-info p {
+                margin: 0.5rem 0;
+                color: #4b5563;
+            }
+
+            .driver-popup-info .status-badge {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.75rem;
+            }
+
+            /* Animation classes */
+            .fade-in {
+                animation: fadeIn 0.3s ease-in-out;
+            }
+
+            .slide-up {
+                animation: slideUp 0.3s ease-in-out;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+
+            @keyframes slideUp {
+                from {
+                    transform: translateY(20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+        </style>
+    </head>
+    <body class="min-h-screen bg-gradient-to-br from-emerald-50 to-sky-50">
+        <div class="max-w-7xl mx-auto p-5 space-y-6">
+            <header class="flex items-center justify-between mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">
+                        Passenger Booking
+                    </h1>
+                    <p class="text-gray-600 mt-1">Book your ride with ease</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="currentLocation" class="status-badge bg-blue-500">
+                        <span class="mr-2">📍</span>
+                        Waiting for GPS...
+                    </div>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Booking Form Section -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="glass-card p-6 rounded-xl">
+                        <div id="bookingForm" class="space-y-4">
+                            <div class="input-group">
+                                <label for="passengerId">Passenger ID</label>
+                                <input
+                                    type="text"
+                                    id="passengerId"
+                                    value="1"
+                                    required
+                                />
+                            </div>
+                            <div class="input-group">
+                                <label for="passengerName">Full Name</label>
+                                <input
+                                    type="text"
+                                    id="passengerName"
+                                    value="Test User"
+                                    required
+                                />
+                            </div>
+                            <div class="input-group">
+                                <label for="passengerPhone">Phone Number</label>
+                                <input
+                                    type="tel"
+                                    id="passengerPhone"
+                                    value="0123456789"
+                                    required
+                                />
+                            </div>
+                            <div class="space-y-2">
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Destination</label
+                                >
+                                <div
+                                    id="dropoffLocation"
+                                    class="p-4 bg-blue-50 text-blue-800 rounded-lg border border-blue-100"
+                                >
+                                    Not selected yet
+                                </div>
+                                <button
+                                    onclick="clearDropoffLocation()"
+                                    class="hidden btn btn-danger w-full mt-2"
+                                    id="clearDropoffBtn"
+                                >
+                                    Clear Destination
+                                </button>
+                            </div>
+                            <div class="flex gap-4 mt-6">
+                                <button
+                                    id="bookButton"
+                                    onclick="bookRide()"
+                                    class="btn btn-primary flex-1"
+                                >
+                                    <span class="mr-2">🚗</span> Book Ride
+                                </button>
+                                <button
+                                    id="cancelButton"
+                                    onclick="cancelBooking()"
+                                    class="hidden btn btn-danger flex-1"
+                                >
+                                    <span class="mr-2">✕</span> Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trip Information -->
+                    <div class="hidden trip-info">
+                        <div class="glass-card p-6 rounded-xl">
+                            <div id="driverInfoPanel" class="space-y-4">
+                                <div class="flex items-center space-x-4">
+                                    <div
+                                        class="driver-avatar bg-emerald-100 text-emerald-600"
+                                    >
+                                        🚗
+                                    </div>
+                                    <div>
+                                        <h3
+                                            class="text-lg font-semibold text-gray-900"
+                                        >
+                                            Driver Details
+                                        </h3>
+                                        <div class="status-badge text-sm">
+                                            On the way
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-gray-500">👤</span>
+                                        <input
+                                            type="text"
+                                            id="driverName"
+                                            readonly
+                                            class="flex-1 bg-gray-50 rounded-lg px-3 py-2"
+                                        />
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-gray-500">📱</span>
+                                        <input
+                                            type="text"
+                                            id="driverPhone"
+                                            readonly
+                                            class="flex-1 bg-gray-50 rounded-lg px-3 py-2"
+                                        />
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-gray-500">🚗</span>
+                                        <input
+                                            type="text"
+                                            id="driverPlate"
+                                            readonly
+                                            class="flex-1 bg-gray-50 rounded-lg px-3 py-2"
+                                        />
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-gray-500">📍</span>
+                                        <input
+                                            type="text"
+                                            id="driverStatus"
+                                            readonly
+                                            class="flex-1 bg-gray-50 rounded-lg px-3 py-2"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="pt-4 border-t border-gray-100">
+                                    <div
+                                        id="tripStatusText"
+                                        class="text-gray-700"
+                                    >
+                                        Waiting for driver...
+                                    </div>
+                                    <div
+                                        id="eta"
+                                        class="text-emerald-600 font-semibold mt-2"
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map Section -->
+                <div class="lg:col-span-2">
+                    <div class="map-container">
+                        <div id="map" class="h-[600px] w-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modals and Overlays -->
+        <div
+            id="overlay"
+            class="fixed inset-0 bg-black bg-opacity-50 hidden z-50"
+        ></div>
+
+        <div
+            id="driverDialog"
+            class="modal-content fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden z-50 max-w-md w-11/12"
+        >
+            <div class="text-center">
+                <div
+                    class="driver-avatar mx-auto bg-emerald-100 text-emerald-600"
+                >
+                    🚗
+                </div>
+                <div id="driverDialogContent" class="space-y-4 mt-4"></div>
+                <button
+                    onclick="closeDriverDialog()"
+                    class="btn btn-primary w-full mt-6"
+                >
+                    Got it!
+                </button>
+            </div>
+        </div>
+
+        <div
+            id="tripNotification"
+            class="modal-content fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden z-50 max-w-md w-11/12"
+        >
+            <div class="text-center">
+                <div id="tripNotificationIcon" class="text-5xl mb-4">ℹ️</div>
+                <h3
+                    id="tripNotificationTitle"
+                    class="text-xl font-bold mb-4"
+                ></h3>
+                <div
+                    id="tripNotificationContent"
+                    class="text-gray-600 mb-6"
+                ></div>
+                <button
+                    onclick="closeTripNotification()"
+                    class="btn btn-primary w-full"
+                >
+                    OK
+                </button>
+            </div>
+        </div>
+
+        <div
+            class="fixed bottom-5 left-1/2 transform -translate-x-1/2 route-info hidden"
+        >
+            <div class="flex items-center space-x-6">
+                <div class="flex items-center">
+                    <span class="text-lg mr-2">📍</span>
+                    <span id="routeDistance" class="font-semibold">0 km</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="text-lg mr-2">⏱️</span>
+                    <span id="routeDuration" class="font-semibold">0 min</span>
+                </div>
+            </div>
+        </div>
+
+        <div
+            id="countdownTimer"
+            class="countdown-timer fixed top-5 right-5 hidden"
+        >
+            Searching for drivers:
+            <span id="timer" class="ml-2 font-mono">3:00</span>
+        </div>
+
+        <div id="timeoutModal" class="modal fixed inset-0 hidden z-50">
+            <div
+                class="modal-content fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-11/12"
+            >
+                <div class="text-center">
+                    <div class="text-5xl mb-4">😕</div>
+                    <h2 class="text-xl font-bold mb-4">No Drivers Found</h2>
+                    <p class="text-gray-600 mb-6">
+                        Would you like to continue searching or cancel the
+                        booking?
+                    </p>
+                    <div class="flex gap-4">
+                        <button
+                            onclick="retryBooking()"
+                            class="btn btn-primary flex-1"
+                        >
+                            Continue Search
+                        </button>
+                        <button
+                            onclick="cancelBooking()"
+                            class="btn btn-danger flex-1"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="driverAcceptancePopup" class="modal fixed inset-0 hidden z-50">
+            <div
+                class="modal-content fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-11/12"
+            >
+                <div class="text-center">
+                    <div class="text-6xl mb-6">🚗</div>
+                    <div class="driver-details space-y-4"></div>
+                    <button
+                        onclick="closeDriverAcceptancePopup()"
+                        class="btn btn-primary w-full mt-6"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load JavaScript files -->
+        <script src="js/config.js"></script>
+        <script src="js/map-utils.js"></script>
+        <script src="js/location-utils.js"></script>
+        <script src="js/socket-handlers.js"></script>
+        <script src="js/ui-utils.js"></script>
+        <script src="js/booking.js"></script>
+        <script src="js/init.js"></script>
+    </body>
+</html>

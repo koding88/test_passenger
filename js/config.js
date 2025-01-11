@@ -6,7 +6,7 @@ const MAP_CONFIG = {
 
 // Socket configuration
 const SOCKET_CONFIG = {
-    url: "http://localhost:5001",
+    url: "https://bice-driver-server.onrender.com",
     options: {
         transports: ["websocket"],
     },
@@ -14,7 +14,7 @@ const SOCKET_CONFIG = {
 
 // API configuration
 const API_CONFIG = {
-    baseUrl: "http://localhost:5001/api/v1",
+    baseUrl: "https://bice-driver-server.onrender.com/api/v1",
 };
 
 // Default locations (will be updated with user's location)
